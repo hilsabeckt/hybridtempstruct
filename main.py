@@ -295,117 +295,117 @@ if __name__ == "__main__":
     ## LOAD DATASETS
     data_edge_lists = {}
     # bikeshare dataset is unique format
-    # for filename in glob.glob(os.path.join('2016TripDataZip', '*.csv')):
-    #     with open(filename, 'r') as file:
-    #         next(file)
-    #         for line in csv.reader(file, delimiter=","):
-    #             if len(line) < 9:
-    #                 continue
-    #             start_station_id = line[7]
-    #             end_station_id = line[4]
-    #             start_date = line[6]
-    #             end_date = line[3]
-    #             try:
-    #                 day, month, year, hour, minute = re.split('\s|/|:', end_date)
-    #                 end_time = dt(int(year), int(month), int(day), int(hour), int(minute)).timestamp()
-    #                 day, month, year, hour, minute = re.split('\s|/|:', start_date)
-    #                 start_time = dt(int(year), int(month), int(day), int(hour), int(minute)).timestamp()
-    #             except:
-    #                 continue
-    #             data_edge_lists.setdefault('bikeshare', []).append((start_station_id, end_station_id, int(start_time), int(end_time)))
-    # data_edge_lists['realitymining'] = load_from_txt('realitymining.edges', delimiter='\t', order=('u', 'v', 'begin', 'end'))
-    # data_edge_lists['wikipedia'] = load_from_txt('wikipedia.edges', delimiter=' ', order=('u', 'v', 'begin', 'end'))
-    # data_edge_lists['infectious'] = load_from_txt('infectious_merged.edges', delimiter='\t', order=('u', 'v', 'begin', 'end'))
-    # data_edge_lists['askubuntu'] = load_from_txt('askubuntu.edges', delimiter=' ', order=('u', 'v', 'timestamp'), impulse=True)
-    # data_edge_lists['wallposts'] = load_from_txt('fb_wall.edges', delimiter='\t', order=('u', 'v', 'timestamp'), impulse=True)
-    # data_edge_lists['enron'] = load_from_txt('execs.email.lines2.txt', delimiter=' ', order=('timestamp', 'u', 'v'), impulse=True)
-    #
-    # ## GENERATE STRUCTURES
-    # global creation_results
-    # creation_results = {}
-    # structures = {'interval': IntervalGraph(), 'snapshot': SnapshotGraph(), 'networkx': MultiGraph(), 'adjtree': AdjTree(), 'tvg': TVG()}
-    #
-    # with mp.Pool(24) as p:
-    #     for creation_time, struct_name, dataset_name, G in tqdm.tqdm(p.starmap(generateStructures, product(structures.items(), data_edge_lists.items())), total=len(structures)*len(data_edge_lists)):
-    #         creation_results.setdefault(struct_name, {})[dataset_name] = (G, creation_time)
-    #         pickle.dump((G, creation_time), open(f'creation_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save structures
-    #
-    # ## GENERATE MEMORY
-    # memory_results = {}
-    # for struct_name in creation_results:
-    #     for dataset_name in creation_results[struct_name]:
-    #         mem = asizeof.asizeof(creation_results[struct_name][dataset_name][0])*1e-6
-    #         print(struct_name, dataset_name, mem)
-    #         memory_results.setdefault(struct_name, {})[dataset_name] = mem
-    #         pickle.dump(memory_results[struct_name][dataset_name], open(f'memory_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
-    #
-    # ## GENERATE INTERVAL SLICES
-    # slice_results = {}
-    # for struct_name in creation_results:
-    #     for dataset_name in creation_results[struct_name]:
-    #         with mp.Pool(12) as p:
-    #             for one, five, ten, twenty in tqdm.tqdm(p.imap_unordered(generateSlices, [(struct_name, dataset_name)]*5000), total=5000):
-    #                 slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(1, []).append(one)
-    #                 slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(5, []).append(five)
-    #                 slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(10, []).append(ten)
-    #                 slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(20, []).append(twenty)
-    #             pickle.dump(slice_results[struct_name][dataset_name], open(f'slice_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
-    #
-    # ## GENERATE COMPOUND SLICES
-    # query_results = {}
-    # for struct_name in creation_results:
-    #     for dataset_name in creation_results[struct_name]:
-    #         with mp.Pool(24) as p:
-    #             for result in tqdm.tqdm(p.imap_unordered(generateCompoundSlices, [(struct_name, dataset_name)]*5000), total=5000):
-    #                 query_results.setdefault(struct_name, {}).setdefault(dataset_name, []).append(result)
-    #             pickle.dump(query_results[struct_name][dataset_name], open(f'compound_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
-    #
-    # ## GENERATE FEATURES (IntervalGraph Only!)
-    #
-    # feature_results = {}
-    #
-    # for dataset_name in query_results['interval']:
-    #     with mp.Pool(24) as p:
-    #         for result, e, l in tqdm.tqdm(p.starmap(generateFeatures, [(dataset_name, x) for x in query_results['interval'][dataset_name]]), total=5000):
-    #             # NodePercent, IntervalPercent, NodeEdges, Average Lifespan, NodeTime, IntervalTime, NumReturned
-    #             ordered_results = (result[2], result[3], e, l, result[0], result[1], result[7])
-    #             feature_results.setdefault(dataset_name, []).append(ordered_results)
-    #     pickle.dump(feature_results[dataset_name], open(f'feature_results_interval_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
-    #
-    #
-    # # ## MODEL FEATURES (IntervalGraph Only!)
-    # score_results = {}
-    # for dataset_name in feature_results:
-    #     X = [result[:4] for result in feature_results[dataset_name]]
-    #     y = []
-    #     for result in feature_results[dataset_name]:
-    #         if result[4] <= result[5]:
-    #             y.append(0)
-    #         else:
-    #             y.append(1)
-    #
-    #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95)
-    #
-    #     model = LogisticRegression(penalty='none', class_weight='balanced')
-    #     model.fit(X_train, y_train)
-    #
-    #     y_pred = model.predict(X_test)
-    #
-    #     score_results[dataset_name] = {'Mean Squared Error': mean_squared_error(y_test, y_pred),
-    #                                    'R2 Score': r2_score(y_test, y_pred),
-    #                                    'Accuracy': accuracy_score(y_test, y_pred),
-    #                                    'Balanced Accuracy': balanced_accuracy_score(y_test, y_pred),
-    #                                    'Coef': model.coef_,
-    #                                    'Intercept': model.intercept_,
-    #                                    'X_test': X_test,
-    #                                    'Predictions': y_pred
-    #                                    }
-    #     print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
-    #     print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
-    #     print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
-    #     print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
-    #
-    #     pickle.dump(score_results[dataset_name], open(f'score_results_{dataset_name}_log.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+    for filename in glob.glob(os.path.join('2016TripDataZip', '*.csv')):
+        with open(filename, 'r') as file:
+            next(file)
+            for line in csv.reader(file, delimiter=","):
+                if len(line) < 9:
+                    continue
+                start_station_id = line[7]
+                end_station_id = line[4]
+                start_date = line[6]
+                end_date = line[3]
+                try:
+                    day, month, year, hour, minute = re.split('\s|/|:', end_date)
+                    end_time = dt(int(year), int(month), int(day), int(hour), int(minute)).timestamp()
+                    day, month, year, hour, minute = re.split('\s|/|:', start_date)
+                    start_time = dt(int(year), int(month), int(day), int(hour), int(minute)).timestamp()
+                except:
+                    continue
+                data_edge_lists.setdefault('bikeshare', []).append((start_station_id, end_station_id, int(start_time), int(end_time)))
+    data_edge_lists['realitymining'] = load_from_txt('realitymining.edges', delimiter='\t', order=('u', 'v', 'begin', 'end'))
+    data_edge_lists['wikipedia'] = load_from_txt('wikipedia.edges', delimiter=' ', order=('u', 'v', 'begin', 'end'))
+    data_edge_lists['infectious'] = load_from_txt('infectious_merged.edges', delimiter='\t', order=('u', 'v', 'begin', 'end'))
+    data_edge_lists['askubuntu'] = load_from_txt('askubuntu.edges', delimiter=' ', order=('u', 'v', 'timestamp'), impulse=True)
+    data_edge_lists['wallposts'] = load_from_txt('fb_wall.edges', delimiter='\t', order=('u', 'v', 'timestamp'), impulse=True)
+    data_edge_lists['enron'] = load_from_txt('execs.email.lines2.txt', delimiter=' ', order=('timestamp', 'u', 'v'), impulse=True)
+
+    ## GENERATE STRUCTURES
+    global creation_results
+    creation_results = {}
+    structures = {'interval': IntervalGraph(), 'snapshot': SnapshotGraph(), 'networkx': MultiGraph(), 'adjtree': AdjTree(), 'tvg': TVG()}
+
+    with mp.Pool(24) as p:
+        for creation_time, struct_name, dataset_name, G in tqdm.tqdm(p.starmap(generateStructures, product(structures.items(), data_edge_lists.items())), total=len(structures)*len(data_edge_lists)):
+            creation_results.setdefault(struct_name, {})[dataset_name] = (G, creation_time)
+            pickle.dump((G, creation_time), open(f'creation_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save structures
+
+    ## GENERATE MEMORY
+    memory_results = {}
+    for struct_name in creation_results:
+        for dataset_name in creation_results[struct_name]:
+            mem = asizeof.asizeof(creation_results[struct_name][dataset_name][0])*1e-6
+            print(struct_name, dataset_name, mem)
+            memory_results.setdefault(struct_name, {})[dataset_name] = mem
+            pickle.dump(memory_results[struct_name][dataset_name], open(f'memory_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+
+    ## GENERATE INTERVAL SLICES
+    slice_results = {}
+    for struct_name in creation_results:
+        for dataset_name in creation_results[struct_name]:
+            with mp.Pool(12) as p:
+                for one, five, ten, twenty in tqdm.tqdm(p.imap_unordered(generateSlices, [(struct_name, dataset_name)]*5000), total=5000):
+                    slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(1, []).append(one)
+                    slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(5, []).append(five)
+                    slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(10, []).append(ten)
+                    slice_results.setdefault(struct_name, {}).setdefault(dataset_name, {}).setdefault(20, []).append(twenty)
+                pickle.dump(slice_results[struct_name][dataset_name], open(f'slice_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+
+    ## GENERATE COMPOUND SLICES
+    query_results = {}
+    for struct_name in creation_results:
+        for dataset_name in creation_results[struct_name]:
+            with mp.Pool(24) as p:
+                for result in tqdm.tqdm(p.imap_unordered(generateCompoundSlices, [(struct_name, dataset_name)]*5000), total=5000):
+                    query_results.setdefault(struct_name, {}).setdefault(dataset_name, []).append(result)
+                pickle.dump(query_results[struct_name][dataset_name], open(f'compound_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+
+    ## GENERATE FEATURES (IntervalGraph Only!)
+
+    feature_results = {}
+
+    for dataset_name in query_results['interval']:
+        with mp.Pool(24) as p:
+            for result, e, l in tqdm.tqdm(p.starmap(generateFeatures, [(dataset_name, x) for x in query_results['interval'][dataset_name]]), total=5000):
+                # NodePercent, IntervalPercent, NodeEdges, Average Lifespan, NodeTime, IntervalTime, NumReturned
+                ordered_results = (result[2], result[3], e, l, result[0], result[1], result[7])
+                feature_results.setdefault(dataset_name, []).append(ordered_results)
+        pickle.dump(feature_results[dataset_name], open(f'feature_results_interval_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+
+
+    # ## MODEL FEATURES (IntervalGraph Only!)
+    score_results = {}
+    for dataset_name in feature_results:
+        X = [result[:4] for result in feature_results[dataset_name]]
+        y = []
+        for result in feature_results[dataset_name]:
+            if result[4] <= result[5]:
+                y.append(0)
+            else:
+                y.append(1)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.95)
+
+        model = LogisticRegression(penalty='none', class_weight='balanced')
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        score_results[dataset_name] = {'Mean Squared Error': mean_squared_error(y_test, y_pred),
+                                       'R2 Score': r2_score(y_test, y_pred),
+                                       'Accuracy': accuracy_score(y_test, y_pred),
+                                       'Balanced Accuracy': balanced_accuracy_score(y_test, y_pred),
+                                       'Coef': model.coef_,
+                                       'Intercept': model.intercept_,
+                                       'X_test': X_test,
+                                       'Predictions': y_pred
+                                       }
+        print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
+        print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
+        print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
+        print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
+
+        pickle.dump(score_results[dataset_name], open(f'score_results_{dataset_name}_log.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
     ## GENERATE CASE STUDY
     for dataset in ['bikeshare', 'realitymining', 'wikipedia', 'infectious', 'askubuntu', 'wallposts', 'enron']:

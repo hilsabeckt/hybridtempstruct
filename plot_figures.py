@@ -307,17 +307,17 @@ def plot_casestudy():
 
 ## SEPARATE CREATION RESULTS FROM CREATION TIMES
 
-# for struct in structs:
-#     for dataset_name in datasets:
-#         G, t = pickle.load(open(f'creation_results_{struct}_{dataset_name}.pkl', 'rb'))
-#         pickle.dump(G, open(f'structure_{struct}_{dataset_name}.pkl', 'wb'))
-#         pickle.dump(t, open(f'creation_time_{struct}_{dataset_name}.pkl', 'wb'))
-#         print(f'{struct}_{dataset_name} Done!')
+for struct in structs:
+    for dataset_name in datasets:
+        G, t = pickle.load(open(f'creation_results_{struct}_{dataset_name}.pkl', 'rb'))
+        pickle.dump(G, open(f'structure_{struct}_{dataset_name}.pkl', 'wb'))
+        pickle.dump(t, open(f'creation_time_{struct}_{dataset_name}.pkl', 'wb'))
+        print(f'{struct}_{dataset_name} Done!')
 
-#plot_memory(structs, datasets)
-#plot_creation(structs, datasets)
-#plot_slices(structs, datasets)
-#plot_slices(structs, datasets, 1)
-# plot_compound(datasets)
-# plot_predict('enron')
+plot_memory(structs, datasets)
+plot_creation(structs, datasets)
+plot_slices(structs, datasets)
+plot_slices(structs, datasets, 1)
+plot_compound(datasets)
+plot_predict('enron')
 # plot_casestudy()

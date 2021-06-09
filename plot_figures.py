@@ -242,69 +242,6 @@ def plot_predict(dataset_name):
     plt.show()
 
 
-def plot_casestudy():
-    casestudy = {'networkx': {'Creation': 0.4029717679368332, 'Query': 25.128054951084778, 'Analysis': 74.29869002802297},
-                 'intervaltree': {'Creation': 2.20763579395134, 'Query': 2.564769828110002, 'Analysis': 74.29869002802297},
-                 'segmenttree': {'Creation': 4.137626645970158, 'Query': 2.5231343526393175, 'Analysis': 74.29869002802297}}
-    color = {'Creation': (0.75, 0.3, 0.3), 'Slice': (0, 0.75, 0), 'Analysis': (0, 0, .75)}
-    label_location = np.arange(len(casestudy))
-    width = 0.2
-
-    fig, ax = plt.subplots()
-
-    bottoms = [0, 0, 0]
-    tops = [0, 0, 0]
-    for category in casestudy['networkx']:
-        i = 0
-        for struct in casestudy:
-            tops[i] = casestudy[struct][category]
-            if category == 'Query':
-                bottoms = [0.4029717679368332, 2.20763579395134, 4.137626645970158]
-            if category == 'Analysis':
-                bottoms = [0.4029717679368332+25.128054951084778, 2.20763579395134+2.564769828110002, 4.137626645970158+2.5231343526393175]
-            i += 1
-
-        ax.barh(label_location, tops, width, left=bottoms, color=color[category], label=category)
-
-
-    ax.set_yticks(label_location)
-    ax.set_yticklabels(casestudy.keys())
-    ax.set_xlabel('Time (s)')
-    fig.tight_layout()
-    fig.set_figheight(4)
-    fig.set_figwidth(6)
-    plt.tight_layout(pad=0.2)
-    plt.legend()
-    fig.savefig('casestudy.eps', format='eps')
-    plt.show()
-
-
-# def plot_error(dataset_name):
-#     feature_results = pickle.load(open(f'feature_results_interval_{dataset_name}.pkl', 'rb'))
-#     score_results = pickle.load(open(f'score_results_{dataset_name}.pkl', 'rb'))
-#
-#     x = np.linspace(0.1, 50, 100)
-#     y = -(score_results['Coef'][0]*x + score_results['Intercept']) / score_results['Coef'][1]
-#
-#     delta_times = [result[5] - result[4] for result in feature_results]
-#     predicted_times = [score_results['Coef'][0]*result[0] + score_results['Coef'][1]*result[1] + score_results['Intercept'] for result in feature_results]
-#
-#     x = np.linspace(-0.1, 0.5, 20)
-#     fig, ax = plt.subplots()
-#     ax.scatter(predicted_times, delta_times, color=(0.75, 0.3, 0.3))
-#     ax.plot(x, x, color=(0, 0, .75), linewidth=5)
-#
-#     ax.set_xlabel('Predicted Delta Time (s)')
-#     ax.set_ylabel('Actual Delta Time (s)')
-#     fig.tight_layout()
-#     fig.set_figheight(5)
-#     fig.set_figwidth(10)
-#     fig.savefig('error.eps', format='eps')
-#     plt.show()
-#     plt.show()
-
-# percents can be 1, 5, 10, or 20
-
 ## SEPARATE CREATION RESULTS FROM CREATION TIMES
 
 for struct in structs:
@@ -320,4 +257,3 @@ plot_slices(structs, datasets)
 plot_slices(structs, datasets, 1)
 plot_compound(datasets)
 plot_predict('enron')
-# plot_casestudy()

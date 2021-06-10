@@ -13,6 +13,7 @@ def plot_memory(structs, datasets):
     for struct in structs:
         for dataset_name in datasets:
             memory_results.setdefault(struct, {})[dataset_name] = pickle.load(open(f'memory_results_{struct}_{dataset_name}.pkl', 'rb'))
+
     fig, ax = plt.subplots()
     width = 0.15
     offset = {'interval': 2 * width, 'snapshot': 1 * width, 'adjtree': 0 * width, 'tvg': -1 * width,'networkx': -2 * width}
@@ -68,7 +69,6 @@ def plot_slices(structs, datasets, percent=None):
         labels = {'interval': 'IntervalGraph', 'snapshot': 'SnapshotGraph', 'networkx': 'NetworkX', 'adjtree': 'AdjTree', 'tvg': 'TVG'}
     else:
         labels = {'interval': '_IntervalGraph', 'snapshot': '_SnapshotGraph', 'networkx': 'NetworkX', 'adjtree': '_AdjTree', 'tvg': '_TVG'}
-
 
     for struct in structs:
         for percent in percents:
@@ -242,6 +242,29 @@ def plot_predict(dataset_name):
     plt.show()
 
 
+def plot_casestudy(dataset):
+    interval_creation, interval_slice, networkx_creation, networkx_slice = pickle.load(open(f'case_study_results_{dataset}.pkl', 'rb'))
+
+    label_location = np.arange(2)
+    fig, ax = plt.subplots()
+
+    create_nums = [interval_creation, networkx_creation]
+    slice_nums = [interval_slice, networkx_slice]
+    ax.barh(label_location, create_nums, 0.5, label='Creation', color=(0.65, 0.3, 0.3))
+    ax.barh(label_location, slice_nums, 0.5, label='Slice', left=create_nums, color=(0, 0.75, 0))
+
+    ax.set_yticks(label_location)
+    ax.set_yticklabels(['IntervalGraph', 'NetworkX'])
+    ax.set_xlabel('Time (s)')
+    fig.tight_layout()
+    fig.set_figheight(2)
+    fig.set_figwidth(6)
+    plt.tight_layout(pad=0.2)
+    plt.legend()
+    fig.savefig('casestudy.eps', format='eps')
+    plt.show()
+
+
 ## SEPARATE CREATION RESULTS FROM CREATION TIMES
 
 for struct in structs:
@@ -257,3 +280,4 @@ plot_slices(structs, datasets)
 plot_slices(structs, datasets, 1)
 plot_compound(datasets)
 plot_predict('enron')
+plot_casestudy('wikipedia')

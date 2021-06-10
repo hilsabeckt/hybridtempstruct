@@ -11,10 +11,11 @@ from itertools import product
 import multiprocessing as mp
 import tqdm
 from pympler import asizeof
+import matplotlib.pylab as plt
 
 from intervalIntervalGraph import IntervalGraph
 from snapshotGraph import SnapshotGraph
-from networkx import MultiGraph
+from networkx import MultiGraph, nx
 from dictsortlist import AdjTree
 from tvg import TVG
 
@@ -273,22 +274,21 @@ def generateCaseStudy(dataset):
 
     interval_slice_times = []
     networkx_slice_times = []
-
-    interval_percent = 1
-    while iG_creation_time + sum(interval_slice_times) > nG_creation_time + sum(networkx_slice_times):
-        begin = random.randint(graph_begin, graph_end - math.ceil((graph_end - graph_begin) * 1 / 100))
-        end = begin + (graph_end - graph_begin) * interval_percent / 100
+    slices = []
+    for i in range(200):
+        begin = random.randint(graph_begin, graph_end)
+        end = begin
 
         start_timer = timer()
         slice = list([(edge.u, edge.v, edge.begin, edge.end) for edge in iG.slice(begin, end)])
         interval_slice_times.append(timer() - start_timer)
 
-
         start_timer = timer()
         slice = list([(u, v, d['begin'], d['end']) for u, v, d in nG.edges(data=True) if d['begin'] == begin or (d['begin'] < end and begin < d['end'])])
         networkx_slice_times.append(timer() - start_timer)
+        slices.append(slice)
 
-    return iG_creation_time, sum(interval_slice_times), nG_creation_time, sum(networkx_slice_times), len(interval_slice_times)
+    return (iG_creation_time, sum(interval_slice_times), nG_creation_time, sum(networkx_slice_times)), dataset
 
 
 if __name__ == "__main__":
@@ -335,7 +335,6 @@ if __name__ == "__main__":
     for struct_name in creation_results:
         for dataset_name in creation_results[struct_name]:
             mem = asizeof.asizeof(creation_results[struct_name][dataset_name][0])*1e-6
-            print(struct_name, dataset_name, mem)
             memory_results.setdefault(struct_name, {})[dataset_name] = mem
             pickle.dump(memory_results[struct_name][dataset_name], open(f'memory_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
@@ -400,14 +399,17 @@ if __name__ == "__main__":
                                        'X_test': X_test,
                                        'Predictions': y_pred
                                        }
-        print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
-        print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
-        print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
-        print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
+        # print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
+        # print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
+        # print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
+        # print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
 
         pickle.dump(score_results[dataset_name], open(f'score_results_{dataset_name}_log.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
     ## GENERATE CASE STUDY
-    for dataset in ['bikeshare', 'realitymining', 'wikipedia', 'infectious', 'askubuntu', 'wallposts', 'enron']:
-        pickle.dump(generateCaseStudy(dataset), open(f'case_study_results_{dataset}.pkl', 'wb'))
+    datasets = ['bikeshare', 'realitymining', 'wikipedia', 'infectious', 'askubuntu', 'wallposts', 'enron']
+    with mp.Pool(24) as p:
+        for result, dataset in tqdm.tqdm(p.imap_unordered(generateCaseStudy, datasets), total=len(datasets)):
+            pickle.dump(result, open(f'case_study_results_{dataset}.pkl', 'wb'))
+
 

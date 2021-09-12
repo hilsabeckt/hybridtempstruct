@@ -266,33 +266,73 @@ def generateGlobalLifeSpan(G):
     return sum(lifespans) / len(lifespans)
 
 
-def generateCaseStudy(dataset):
-    iG, iG_creation_time = pickle.load(open(f'creation_results_interval_{dataset}.pkl', 'rb'))
-    nG, nG_creation_time = pickle.load(open(f'creation_results_networkx_{dataset}.pkl', 'rb'))
-
+def generateCaseStudy():
+    iG, iG_creation_time = pickle.load(open(f'creation_results_interval_bikeshare.pkl', 'rb'))
+    nG, nG_creation_time = pickle.load(open(f'creation_results_networkx_bikeshare.pkl', 'rb'))
     graph_begin, graph_end = iG.interval()
 
     interval_slice_times = []
     networkx_slice_times = []
-    slices = []
-    for i in range(200):
-        begin = random.randint(graph_begin, graph_end)
-        end = begin
+    raw_slice_times = []
+    analysis_times = []
 
+    begin = graph_begin
+    while begin < graph_end:
+        end = begin + 60*60*24
+        # Interval Graph Slice
         start_timer = timer()
-        slice = list([(edge.u, edge.v, edge.begin, edge.end) for edge in iG.slice(begin, end)])
+        G1 = nx.Graph()
+        for edge in iG.slice(begin, end):
+            G1.add_edge(edge.u, edge.v, begin=edge.begin, end=edge.end)
         interval_slice_times.append(timer() - start_timer)
 
+        # NetworkX Slice
         start_timer = timer()
-        slice = list([(u, v, d['begin'], d['end']) for u, v, d in nG.edges(data=True) if d['begin'] == begin or (d['begin'] < end and begin < d['end'])])
+        G2 = nx.Graph()
+        for u, v, d in nG.edges(data=True):
+            if d['begin'] == begin or (d['begin'] < end and begin < d['end']):
+                G2.add_edge(u, v, begin=d['begin'], end=d['end'])
         networkx_slice_times.append(timer() - start_timer)
-        slices.append(slice)
 
-    return (iG_creation_time, sum(interval_slice_times), nG_creation_time, sum(networkx_slice_times)), dataset
+        # Raw Text Slice
+        start_timer = timer()
+        G3 = nx.Graph()
+        for filename in glob.glob(os.path.join('2016TripDataZip', '*.csv')):
+            with open(filename, 'r') as filve:
+                next(file)
+                for line in csv.reader(file, delimiter=","):
+                    if len(line) < 9:
+                        continue
+                    start_station_id = line[7]
+                    end_station_id = line[4]
+                    start_date = line[6]
+                    end_date = line[3]
+                    try:
+                        day, month, year, hour, minute = re.split('\s|/|:', end_date)
+                        end_time = dt(int(year), int(month), int(day), int(hour), int(minute)).timestamp()
+                        day, month, year, hour, minute = re.split('\s|/|:', start_date)
+                        start_time = dt(int(year), int(month), int(day), int(hour), int(minute)).timestamp()
+                    except:
+                        continue
+                    if start_time == begin or (start_time < end and begin < end_time):
+                        G3.add_edge(start_station_id, end_station_id, begin=start_time, end=end_time)
+
+        # Analysis - (All subgraphs, G1, G2, G3 are same at this point, only have to calculate once)
+        if G1.number_of_edges() != 0:
+            start_timer = timer()
+            nx.betweenness_centrality(G1)
+            analysis_times.append(timer() - start_timer)
+        else:
+            analysis_times.append(0)
+
+        begin = end
+        print(len(interval_slice_times))
+
+    return (iG_creation_time, sum(interval_slice_times), nG_creation_time, sum(networkx_slice_times), sum(raw_slice_times), sum(analysis_times))
 
 
 if __name__ == "__main__":
-    ## LOAD DATASETS
+    # ## LOAD DATASETS
     data_edge_lists = {}
     # bikeshare dataset is unique format
     for filename in glob.glob(os.path.join('2016TripDataZip', '*.csv')):
@@ -372,7 +412,7 @@ if __name__ == "__main__":
         pickle.dump(feature_results[dataset_name], open(f'feature_results_interval_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
 
-    # ## MODEL FEATURES (IntervalGraph Only!)
+    ## MODEL FEATURES (IntervalGraph Only!)
     score_results = {}
     for dataset_name in feature_results:
         X = [result[:4] for result in feature_results[dataset_name]]
@@ -399,17 +439,15 @@ if __name__ == "__main__":
                                        'X_test': X_test,
                                        'Predictions': y_pred
                                        }
-        # print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
-        # print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
-        # print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
-        # print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
+        print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
+        print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
+        print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
+        print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
 
         pickle.dump(score_results[dataset_name], open(f'score_results_{dataset_name}_log.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
     ## GENERATE CASE STUDY
-    datasets = ['bikeshare', 'realitymining', 'wikipedia', 'infectious', 'askubuntu', 'wallposts', 'enron']
-    with mp.Pool(24) as p:
-        for result, dataset in tqdm.tqdm(p.imap_unordered(generateCaseStudy, datasets), total=len(datasets)):
-            pickle.dump(result, open(f'case_study_results_{dataset}.pkl', 'wb'))
-
+    result = generateCaseStudy()
+    print(result)
+    pickle.dump(result, open(f'case_study_results.pkl', 'wb'))
 

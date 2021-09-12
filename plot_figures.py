@@ -242,16 +242,22 @@ def plot_predict(dataset_name):
     plt.show()
 
 
-def plot_casestudy(dataset):
-    interval_creation, interval_slice, networkx_creation, networkx_slice = pickle.load(open(f'case_study_results_{dataset}.pkl', 'rb'))
+def plot_casestudy():
+    interval_creation, interval_slice, networkx_creation, networkx_slice, raw_slice, analysis = pickle.load(open(f'case_study_results.pkl', 'rb'))
 
     label_location = np.arange(2)
     fig, ax = plt.subplots()
 
     create_nums = [interval_creation, networkx_creation]
     slice_nums = [interval_slice, networkx_slice]
+    print(create_nums)
+    print(slice_nums)
+    print(analysis)
+    print([c + s for c, s in zip(create_nums, slice_nums)])
+    analysis_nums = [analysis]*2
     ax.barh(label_location, create_nums, 0.5, label='Creation', color=(0.65, 0.3, 0.3))
     ax.barh(label_location, slice_nums, 0.5, label='Slice', left=create_nums, color=(0, 0.75, 0))
+    ax.barh(label_location, analysis_nums, 0.5, label='Analysis', left=[c + s for c, s in zip(create_nums, slice_nums)], color=(0, 0, .75))
 
     ax.set_yticks(label_location)
     ax.set_yticklabels(['IntervalGraph', 'NetworkX'])
@@ -278,6 +284,7 @@ plot_memory(structs, datasets)
 plot_creation(structs, datasets)
 plot_slices(structs, datasets)
 plot_slices(structs, datasets, 1)
+plot_slices(structs, datasets, 5)
 plot_compound(datasets)
 plot_predict('enron')
-plot_casestudy('wikipedia')
+plot_casestudy()

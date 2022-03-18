@@ -12,6 +12,7 @@ import multiprocessing as mp
 import tqdm
 from pympler import asizeof
 import matplotlib.pylab as plt
+from random import sample
 
 from intervalIntervalGraph import IntervalGraph
 from snapshotGraph import SnapshotGraph
@@ -20,7 +21,7 @@ from dictsortlist import AdjTree
 from tvg import TVG
 
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, balanced_accuracy_score
 
 
@@ -209,10 +210,77 @@ def generateSlices(inputs):
 
 def generateFeatures(dataset_name, result):
     global creation_results, slice_results
+
+    feats = []
+    times = []
     G = creation_results['interval'][dataset_name][0]
-    e = generateNodeEdges(result, G)
-    l = generateLifeSpan(result, G)
-    return result, e, l
+    for funct in [generateNodePercent, generateIntervalPercent, generateMeanWeightedNodeDegree, generateLifeSpan, generateBins]:
+        start_time = timer()
+        r = funct(result, G)
+        t = timer() - start_time
+        if funct == generateBins:
+            feats.extend(r)
+            times.extend([t/3]*3)
+        else:
+            feats.append(r)
+            times.append(t)
+
+    return feats, times, (result[0], result[1])
+
+
+def generateNodePercent(result, G):
+    return len(result[4]) / len(G.node)
+
+
+def generateIntervalPercent(result, G):
+    return (result[6] - result[5]) / (G.end - G.begin)
+
+
+def generateMeanNodeDegree(result, G):
+    edges = set()
+    for u in result[4]:
+        for v in G.adj[u]:
+            edges.add((u, v))
+    return len(edges) / len(result[4])
+
+
+def generateMeanWeightedNodeDegree(result, G):
+    e = 0
+    for u in result[4]:
+        for v in G.adj[u]:
+            e += len(G.adj[u][v])
+    return e / len(result[4])
+
+
+def generateTemporalDurations(result, G):
+    durations = []
+    for u in result[4]:
+        for v in G.adj[u]:
+            for edge in G.adj[u][v]:
+                durations.append(edge.end - edge.begin)
+    return sum(durations) / len(durations)
+
+
+def generateLifeSpan(result, G):
+    graph_begin, graph_end = G.interval()
+    lifespans = []
+    for u in result[4]:
+        u_start, u_end = G.lifespans[u][0], G.lifespans[u][-1]
+        lifespans.append((u_end - u_start) / (graph_end - graph_begin))
+    return sum(lifespans) / len(lifespans)
+
+
+def generateBins(result, dataset_name):
+    begin, end = result[5], result[6]
+    global numEdges
+    overlappingEdges = []
+    for b, e in numEdges[dataset_name]:
+        if b == begin or (e > begin and b < end):
+            overlappingEdges.append(numEdges[dataset_name][(b, e)])
+
+    if len(overlappingEdges) == 0:
+        return 0, 0, 0
+    return min(overlappingEdges), max(overlappingEdges), sum(overlappingEdges) / len(overlappingEdges)
 
 
 def generateNodeEdges(result, G):
@@ -221,49 +289,6 @@ def generateNodeEdges(result, G):
         for v in G.adj[u]:
             e += len(G.adj[u][v])
     return e / G.number_of_edges
-
-
-def generateLifeSpan(result, G):
-    graph_begin, graph_end = G.interval()
-    lifespans = []
-    for u in result[4]:
-        u_start = float('inf')
-        u_end = float('-inf')
-        for v in G.adj[u]:
-            for edge in G.adj[u][v]:
-                u_start = min(edge.begin, u_start)
-                u_end = max(edge.end, u_end)
-        lifespans.append((u_end - u_start) / (graph_end - graph_begin))
-    return sum(lifespans) / len(lifespans)
-
-
-def generateGlobalFeatures(dataset_name):
-    global creation_results, slice_results
-    G = creation_results['interval'][dataset_name][0]
-    e = generateGlobalNodeEdges(G)
-    l = generateGlobalLifeSpan(G)
-    return dataset_name, e, l
-
-
-def generateGlobalNodeEdges(G):
-    e = 0
-    for u in G.node:
-        e += len(G.adj[u])
-    return e / len(G.node)
-
-
-def generateGlobalLifeSpan(G):
-    graph_begin, graph_end = G.interval()
-    lifespans = []
-    for u in G.node:
-        u_start = float('inf')
-        u_end = float('-inf')
-        for v in G.adj[u]:
-            for edge in G.adj[u][v]:
-                u_start = min(edge.begin, u_start)
-                u_end = max(edge.end, u_end)
-        lifespans.append((u_end - u_start) / (graph_end - graph_begin))
-    return sum(lifespans) / len(lifespans)
 
 
 def generateCaseStudy():
@@ -278,7 +303,7 @@ def generateCaseStudy():
 
     begin = graph_begin
     while begin < graph_end:
-        end = begin + 60*60*24
+        end = begin + 60 * 60 * 24
         # Interval Graph Slice
         start_timer = timer()
         G1 = nx.Graph()
@@ -298,7 +323,7 @@ def generateCaseStudy():
         start_timer = timer()
         G3 = nx.Graph()
         for filename in glob.glob(os.path.join('2016TripDataZip', '*.csv')):
-            with open(filename, 'r') as filve:
+            with open(filename, 'r') as file:
                 next(file)
                 for line in csv.reader(file, delimiter=","):
                     if len(line) < 9:
@@ -332,7 +357,9 @@ def generateCaseStudy():
 
 
 if __name__ == "__main__":
-    # ## LOAD DATASETS
+    print("RUNNING MAIN")
+
+    ## LOAD DATASETS
     data_edge_lists = {}
     # bikeshare dataset is unique format
     for filename in glob.glob(os.path.join('2016TripDataZip', '*.csv')):
@@ -364,11 +391,21 @@ if __name__ == "__main__":
     global creation_results
     creation_results = {}
     structures = {'interval': IntervalGraph(), 'snapshot': SnapshotGraph(), 'networkx': MultiGraph(), 'adjtree': AdjTree(), 'tvg': TVG()}
-
     with mp.Pool(24) as p:
         for creation_time, struct_name, dataset_name, G in tqdm.tqdm(p.starmap(generateStructures, product(structures.items(), data_edge_lists.items())), total=len(structures)*len(data_edge_lists)):
             creation_results.setdefault(struct_name, {})[dataset_name] = (G, creation_time)
             pickle.dump((G, creation_time), open(f'creation_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save structures
+
+    ## TRAIN INTERVALGRAPH
+    for dataset_name in creation_results['interval']:
+        for t in [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]:
+            G = creation_results['interval'][dataset_name][0]
+            start_time = timer()
+            attempts = G.generateModel(trainingSize=t)
+            model_time = timer() - start_time
+            print(dataset_name, creation_results['interval'][dataset_name][1], model_time, attempts)
+            pickle.dump((None, creation_results['interval'][dataset_name][1], model_time, attempts), open(f'creation_results_interval_{dataset_name}_{t}.pkl', 'wb')) # Comment out this line if you do not wish to save structures
+
 
     ## GENERATE MEMORY
     memory_results = {}
@@ -378,7 +415,16 @@ if __name__ == "__main__":
             memory_results.setdefault(struct_name, {})[dataset_name] = mem
             pickle.dump(memory_results[struct_name][dataset_name], open(f'memory_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
-    ## GENERATE INTERVAL SLICES
+
+    ## CALCULATE INTERVALGRAPH MODEL MEMORY
+    model_memory_results = {}
+    for dataset_name in creation_results['interval']:
+        mem = asizeof.asizeof(creation_results[struct_name][dataset_name][0].model) * 1e-6
+        model_memory_results.setdefault(struct_name, {})[dataset_name] = mem
+        pickle.dump(model_memory_results[struct_name][dataset_name], open(f'model_memory_results_{struct_name}_{dataset_name}.pkl', 'wb'))
+    print(model_memory_results)
+
+    # GENERATE INTERVAL SLICES
     slice_results = {}
     for struct_name in creation_results:
         for dataset_name in creation_results[struct_name]:
@@ -394,31 +440,58 @@ if __name__ == "__main__":
     query_results = {}
     for struct_name in creation_results:
         for dataset_name in creation_results[struct_name]:
-            with mp.Pool(24) as p:
+            with mp.Pool(12) as p:
                 for result in tqdm.tqdm(p.imap_unordered(generateCompoundSlices, [(struct_name, dataset_name)]*5000), total=5000):
                     query_results.setdefault(struct_name, {}).setdefault(dataset_name, []).append(result)
                 pickle.dump(query_results[struct_name][dataset_name], open(f'compound_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
-    ## GENERATE FEATURES (IntervalGraph Only!)
+    ## Generating Samples
+    structures = {'interval': IntervalGraph()}
+    sample_data_edge_lists = {}
+    sample_creation_results = {}
+    for dataset_name in data_edge_lists:
+        sample_data_edge_lists[dataset_name] = sample(data_edge_lists[dataset_name], int(len(data_edge_lists[dataset_name])*0.01))
 
+    subsetCreateTime = {}
+    with mp.Pool(24) as p:
+        for creation_time, struct_name, dataset_name, G in tqdm.tqdm(p.starmap(generateStructures, product(structures.items(), sample_data_edge_lists.items())), total=len(structures)*len(sample_data_edge_lists)):
+            sample_creation_results.setdefault(struct_name, {})[dataset_name] = (G, creation_time)
+
+    pickle.dump((G, creation_time), open(f'sample_creation_results_{struct_name}_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save structures
+
+    # # # Create Bins
+    global numEdges
+    numEdges = {}
+    for dataset_name in data_edge_lists:
+        start_time = timer()
+        G = sample_creation_results['interval'][dataset_name][0]
+
+        begin, end = G.interval()
+
+        bins = [(begin + i * (end - begin) / 100, begin + (i + 1) * (end - begin) / 100) for i in range(100)]
+        for b, e in bins:
+            results = [x for x in G.slice(b, e)]
+            numEdges.setdefault(dataset_name, {})[(b, e)] = len(results)
+        end_time = timer() - start_time
+
+    # GENERATE FEATURES (IntervalGraph Only!)
+    print("Generating Features")
     feature_results = {}
-
     for dataset_name in query_results['interval']:
-        with mp.Pool(24) as p:
-            for result, e, l in tqdm.tqdm(p.starmap(generateFeatures, [(dataset_name, x) for x in query_results['interval'][dataset_name]]), total=5000):
-                # NodePercent, IntervalPercent, NodeEdges, Average Lifespan, NodeTime, IntervalTime, NumReturned
-                ordered_results = (result[2], result[3], e, l, result[0], result[1], result[7])
-                feature_results.setdefault(dataset_name, []).append(ordered_results)
-        pickle.dump(feature_results[dataset_name], open(f'feature_results_interval_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+        with mp.Pool(12) as p:
+            for features, times, results in tqdm.tqdm(p.starmap(generateFeatures, [(dataset_name, x) for x in query_results['interval'][dataset_name]]), total=5000):
+                feature_results.setdefault(dataset_name, []).append((features, results, times))
+        pickle.dump(feature_results[dataset_name],
+                    open(f'feature_results_interval_{dataset_name}.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
 
-    ## MODEL FEATURES (IntervalGraph Only!)
+    ## LOG MODEL FEATURES (IntervalGraph Only!)
     score_results = {}
     for dataset_name in feature_results:
-        X = [result[:4] for result in feature_results[dataset_name]]
+        X = [result[0][:2] for result in feature_results[dataset_name]]
         y = []
         for result in feature_results[dataset_name]:
-            if result[4] <= result[5]:
+            if result[1][0] <= result[1][1]:
                 y.append(0)
             else:
                 y.append(1)
@@ -430,7 +503,8 @@ if __name__ == "__main__":
 
         y_pred = model.predict(X_test)
 
-        score_results[dataset_name] = {'Mean Squared Error': mean_squared_error(y_test, y_pred),
+        score_results[dataset_name] = {'Model': model,
+                                       'RMSE': mean_squared_error(y_test, y_pred, squared=False),
                                        'R2 Score': r2_score(y_test, y_pred),
                                        'Accuracy': accuracy_score(y_test, y_pred),
                                        'Balanced Accuracy': balanced_accuracy_score(y_test, y_pred),
@@ -439,15 +513,45 @@ if __name__ == "__main__":
                                        'X_test': X_test,
                                        'Predictions': y_pred
                                        }
-        print(dataset_name, 'Mean Squared Error:', score_results[dataset_name]['Mean Squared Error'])
-        print(dataset_name, 'R2 Score:', score_results[dataset_name]['R2 Score'])
-        print(dataset_name, 'Accuracy:', score_results[dataset_name]['Accuracy'])
-        print(dataset_name, 'Balanced Accuracy:', score_results[dataset_name]['Balanced Accuracy'])
 
         pickle.dump(score_results[dataset_name], open(f'score_results_{dataset_name}_log.pkl', 'wb'))  # Comment out this line if you do not wish to save results
 
+
+
+    # print("Generating Models")
+    ## LIN MODEL FEATURES (IntervalGraph Only!)
+    score_results = {}
+    for dataset_name in feature_results:
+        for percent in range(1, 11):
+            trim_feats = range(4)
+            X = [result[0] for result in feature_results[dataset_name]]
+            y = [result[1] for result in feature_results[dataset_name]]
+
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=(1-percent/100), random_state=0)
+
+            X_train_trim = [[x[i] for i in trim_feats] for x in X_train]
+            X_test_trim = [[x[i] for i in trim_feats] for x in X_test]
+
+            model = LinearRegression()
+            model.fit(X_train_trim, y_train)
+            y_pred = model.predict(X_test_trim)
+
+            faster_y_pred = [0 if out[0] > out[1] else 1 for out in y_pred]
+            faster_y_test = [0 if out[0] > out[1] else 1 for out in y_test]
+
+            score_results[dataset_name] = {'Model': model,
+                                           'RMSE': mean_squared_error(y_test, y_pred, squared=False),
+                                           'R2 Score': r2_score(y_test, y_pred),
+                                           'Accuracy': accuracy_score(faster_y_test, faster_y_pred),
+                                           'Balanced Accuracy': balanced_accuracy_score(faster_y_test, faster_y_pred),
+                                           'Coef': model.coef_,
+                                           'Intercept': model.intercept_,
+                                           'X_test': X_test,
+                                           'Predictions': y_pred
+                                           }
+
+            pickle.dump(score_results[dataset_name], open(f'score_results_{dataset_name}_lin_{percent}_4.pkl', 'wb'))  # Comment out this line if you do not wish to save results
+
     ## GENERATE CASE STUDY
     result = generateCaseStudy()
-    print(result)
     pickle.dump(result, open(f'case_study_results.pkl', 'wb'))
-
